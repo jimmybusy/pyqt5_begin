@@ -22,8 +22,12 @@ import GraphicVeiw
 import math
 import numpy as np
 import time
+import pandas as pd
+import os
+
 class Ui_MainWindow(QtWidgets.QMainWindow):
     def setupUi(self):
+
         self.limit = 0.00001       #死区
         self.transformerlist2 = [] #双绕组变压器控件的容器
         self.transformerlist3 = []
@@ -152,10 +156,153 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
 
     def func_save(self):
-        pass
+        try:
+            datalen = len(self.nodelist)+len(self.transformerlist3)
+            nodelen = len(self.nodelist)
+            data_arr = np.zeros((datalen,7))
+            for i in range(nodelen):
+                data_arr[i][0] = self.nodelist[i].node.index
+                data_arr[i][1] = self.nodelist[i].node.node_tpye
+                data_arr[i][2] = self.nodelist[i].node.node_p
+                data_arr[i][3] = self.nodelist[i].node.node_q
+                data_arr[i][4] = self.nodelist[i].node.node_v
+                data_arr[i][5] = self.nodelist[i].node.node_angle
+                data_arr[i][6] = 1
+            for i in range(len(self.transformerlist3)):
+                data_arr[nodelen+i][0] = self.transformerlist3[i].trans_3.index
+                data_arr[nodelen+i][1] = self.transformerlist3[i].trans_3.node_tpye
+                data_arr[nodelen+i][2] = self.transformerlist3[i].trans_3.node_p
+                data_arr[nodelen+i][3] = self.transformerlist3[i].trans_3.node_q
+                data_arr[nodelen+i][4] = self.transformerlist3[i].trans_3.node_v
+                data_arr[nodelen+i][5] = self.transformerlist3[i].trans_3.node_angle
+                data_arr[nodelen+i][6] = 2
+            column = ["index","TYPE","P","Q","V","ANGEL","GORY"]
+            r1_pd = pd.DataFrame(data_arr, columns = column)
+            r1_pd["GORY"][(r1_pd["GORY"]==1)] = "node"
+            r1_pd["GORY"][(r1_pd["GORY"]!= "node")] = "transformer3"
+            r1_pd["TYPE"][(r1_pd["TYPE"]==1)] = "PQ"
+            r1_pd["TYPE"][(r1_pd["TYPE"]==2)] = "PV"
+            r1_pd["TYPE"][(r1_pd["TYPE"]==3)] = "BALANCE"
+
+            if os.path.exists("./result/result_node.csv"):
+                os.remove("./result/result_node.csv")
+                r1_pd.to_csv("./result/result_node.csv", index = False)
+                self.textEdit.clear()
+                self.textEdit.append("success_save")
+            else:
+                r1_pd.to_csv("./result/result_node.csv", index = False)
+                self.textEdit.clear()
+                self.textEdit.append("success_save")
+
+
+
+
+
+        except:
+            #print(traceback.print_exc())
+            self.textEdit.clear()
+            self.textEdit.append("defeat_save")
+
 
     def func_open(self):
-        pass
+        try:
+            pd_trans_2 = pd.read_csv("transformer2.csv")
+            pd_trans_3 = pd.read_csv("transformer3.csv")
+            pd_node = pd.read_csv("node.csv")
+            pd_wire = pd.read_csv("wire.csv")
+        except:
+            self.textEdit.append("编码错误")
+            #print(traceback.print_exc())
+
+        for i in range(len(self.transformerlist2)):
+            self.transformerlist2[i].trans_2.PK = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "PK"])
+            self.transformerlist2[i].trans_2.lineedit1.setText(self.transformerlist2[i].trans_2.PK)
+            self.transformerlist2[i].trans_2.UK = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "UK"])
+            self.transformerlist2[i].trans_2.lineedit2.setText(self.transformerlist2[i].trans_2.UK)
+            self.transformerlist2[i].trans_2.P0 = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "P0"])
+            self.transformerlist2[i].trans_2.lineedit3.setText(self.transformerlist2[i].trans_2.P0)
+            self.transformerlist2[i].trans_2.I0 = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "I0"])
+            self.transformerlist2[i].trans_2.lineedit4.setText(self.transformerlist2[i].trans_2.I0)
+            self.transformerlist2[i].trans_2.ratio = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "RATIO1"])+"/"+ str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "RATIO2"])
+            self.transformerlist2[i].trans_2.lineedit5.setText(self.transformerlist2[i].trans_2.ratio)
+            self.transformerlist2[i].trans_2.SN = str(pd_trans_2[pd_trans_2["INDEX"] == self.transformerlist2[i].trans_2.index].reset_index().loc[0, "SN"])
+            self.transformerlist2[i].trans_2.lineedit6.setText(self.transformerlist2[i].trans_2.SN)
+
+        a = pd_node.loc[pd_node["GORY"] == 1,:]
+        for i in range(len(self.nodelist)):
+            b = a.loc[a["INDEX"] == self.nodelist[i].node.index, :]
+
+
+            self.nodelist[i].node.node_p = str(b.reset_index().loc[0,"P"])
+            self.nodelist[i].node.node_lineP.setText(self.nodelist[i].node.node_p)
+            self.nodelist[i].node.node_q = str(b.reset_index().loc[0,"Q"])
+            self.nodelist[i].node.node_lineQ.setText(self.nodelist[i].node.node_q)
+            self.nodelist[i].node.node_v = str(b.reset_index().loc[0,"V"])
+            self.nodelist[i].node.node_lineV.setText(self.nodelist[i].node.node_v)
+            self.nodelist[i].node.node_angle = str(b.reset_index().loc[0,"A"])
+            self.nodelist[i].node.node_lineA.setText(self.nodelist[i].node.node_angle)
+            self.nodelist[i].node.node_tpye = b.reset_index().loc[0,"TYPE"]
+            if self.nodelist[i].node.node_tpye == 1:
+                self.nodelist[i].node.combobox.setCurrentIndex(0)
+            elif self.nodelist[i].node.node_tpye == 2:
+                self.nodelist[i].node.combobox.setCurrentIndex(1)
+            else:
+                self.nodelist[i].node.combobox.setCurrentIndex(2)
+        a = pd_node.loc[pd_node["GORY"] == 2,:]
+        for i in range(len(self.transformerlist3)):
+            b = a.loc[a["INDEX"] == self.transformerlist3[i].trans_3.index, :]
+            self.transformerlist3[i].trans_3.node_p = str(b.reset_index().loc[0, "P"])
+            self.transformerlist3[i].trans_3.node_lineP.setText(self.transformerlist3[i].trans_3.node_p)
+            self.transformerlist3[i].trans_3.node_q = str(b.reset_index().loc[0, "Q"])
+            self.transformerlist3[i].trans_3.node_lineQ.setText(self.transformerlist3[i].trans_3.node_q)
+            self.transformerlist3[i].trans_3.node_v = str(b.reset_index().loc[0, "V"])
+            self.transformerlist3[i].trans_3.node_lineV.setText(self.transformerlist3[i].trans_3.node_v)
+            self.transformerlist3[i].trans_3.node_angle = str(b.reset_index().loc[0, "A"])
+            self.transformerlist3[i].trans_3.node_lineA.setText(self.transformerlist3[i].trans_3.node_angle)
+            self.transformerlist3[i].trans_3.node_tpye = b.reset_index().loc[0, "TYPE"]
+            if self.transformerlist3[i].trans_3.node_tpye == 1:
+                self.transformerlist3[i].trans_3.combobox.setCurrentIndex(0)
+            elif self.transformerlist3[i].trans_3.node_tpye == 2:
+                self.transformerlist3[i].trans_3.combobox.setCurrentIndex(1)
+            else:
+                self.transformerlist3[i].trans_3.combobox.setCurrentIndex(2)
+        for i in range(len(self.transformerlist3)):
+            a = pd_trans_3.loc[pd_trans_3["INDEX"] == self.transformerlist3[i].trans_3.index,:].reset_index()
+            self.transformerlist3[i].trans_3.P12 = str(a.loc[0,"P12"])
+            self.transformerlist3[i].trans_3.lineedit1.setText(self.transformerlist3[i].trans_3.P12)
+            self.transformerlist3[i].trans_3.P23 = str(a.loc[0,"P23"])
+            self.transformerlist3[i].trans_3.lineedit2.setText(self.transformerlist3[i].trans_3.P23)
+            self.transformerlist3[i].trans_3.P31 = str(a.loc[0,"P31"])
+            self.transformerlist3[i].trans_3.lineedit3.setText(self.transformerlist3[i].trans_3.P31)
+            self.transformerlist3[i].trans_3.I0 = str(a.loc[0,"I0"])
+            self.transformerlist3[i].trans_3.lineedit4.setText(self.transformerlist3[i].trans_3.I0)
+            self.transformerlist3[i].trans_3.P0 = str(a.loc[0 ,"P0"])
+            self.transformerlist3[i].trans_3.lineedit5.setText(self.transformerlist3[i].trans_3.P0)
+            self.transformerlist3[i].trans_3.SN1 = str(a.loc[0 ,"SN1"])
+            self.transformerlist3[i].trans_3.lineedit6.setText(self.transformerlist3[i].trans_3.SN1)
+            self.transformerlist3[i].trans_3.SN2 = str(a.loc[0 ,"SN2"])
+            self.transformerlist3[i].trans_3.lineedit7.setText(self.transformerlist3[i].trans_3.SN2)
+            self.transformerlist3[i].trans_3.SN3 = str(a.loc[0 ,"SN3"])
+            self.transformerlist3[i].trans_3.lineedit8.setText(self.transformerlist3[i].trans_3.SN3)
+            self.transformerlist3[i].trans_3.ratio = str(a.loc[0 ,"RATIO1"])+"/"+str(a.loc[0,"RATIO2"])+"/"+str(a.loc[0,"RATIO3"])
+            self.transformerlist3[i].trans_3.lineedit9.setText(self.transformerlist3[i].trans_3.ratio)
+            self.transformerlist3[i].trans_3.V12 = str(a.loc[0 ,"V12"])
+            self.transformerlist3[i].trans_3.lineedit10.setText(self.transformerlist3[i].trans_3.V12)
+            self.transformerlist3[i].trans_3.V23 = str(a.loc[0 ,"V23"])
+            self.transformerlist3[i].trans_3.lineedit11.setText(self.transformerlist3[i].trans_3.V23)
+            self.transformerlist3[i].trans_3.V31 = str(a.loc[0 ,"V31"])
+            self.transformerlist3[i].trans_3.lineedit12.setText(self.transformerlist3[i].trans_3.V31)
+
+        for i in range(len(self.wirelist)):
+            a = pd_wire.loc[pd_wire["INDEX"] == self.wirelist[i].wire.index].reset_index()
+            self.wirelist[i].wire.r1 = str(a.loc[0,"R"])
+            self.wirelist[i].wire.lineedit2.setText(self.wirelist[i].wire.r1)
+            self.wirelist[i].wire.x1 = str(a.loc[0,"X"])
+            self.wirelist[i].wire.lineedit1.setText(self.wirelist[i].wire.x1)
+            self.wirelist[i].wire.b1 = str(a.loc[0,"B"])
+            self.wirelist[i].wire.lineedit3.setText(self.wirelist[i].wire.b1)
+            self.wirelist[i].wire.length = str(a.loc[0,"LENGTH"])
+            self.wirelist[i].wire.lineedit4.setText(self.wirelist[i].wire.length)
 
     def func_run(self):
         self.lineedite.setText("0.00001")
@@ -489,6 +636,16 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         for i in range(len):
             tr = ','.join(str(j) for j in self.ad_matrix[i])
             self.textEdit_view.append(tr)
+        matix = pd.DataFrame(self.ad_matrix)
+        if os.path.exists("./result/matix.csv"):
+            os.remove("./result/matix.csv")
+            matix.to_csv("./result/matix.csv", index = False)
+            self.textEdit.clear()
+            self.textEdit.append("success_save")
+        else:
+            matix.to_csv("./result/matix.csv", index = False)
+            self.textEdit.clear()
+            self.textEdit.append("success_save")
         #    print(tr)
     #P Q U ANGEK矩阵初始化
     def P_Q_u_angle_init(self):
@@ -908,7 +1065,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
                 self.textEdit.clear()
                 #print(np.linalg.inv(j))
 
-                print(self.error)
+                #print(self.error)
                 a = np.linalg.inv(j)
                 self.offset = a@self.error
                 # print(self.Ui)
